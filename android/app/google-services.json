@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "303254267360",
+    "project_id": "curosync-app",
+    "storage_bucket": "curosync-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:303254267360:android:764147d55e4b770be4b785",
+        "android_client_info": {
+          "package_name": "com.curosync.curosync"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCvUxCAa5qiaCC0ff4MuL6bGLpe6p10dms"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
