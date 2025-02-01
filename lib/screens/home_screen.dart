@@ -7,7 +7,7 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(title: Text("Home")),
       body: Center(
         child: Text(
-          "Welcome to Home Screen of CuroSync",
+          "Welcome to CuroSync:Health Application",
           style: TextStyle(fontSize: 20),
         ),
       ),

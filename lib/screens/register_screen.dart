@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RegisterScreen extends StatefulWidget {
   @override
@@ -11,6 +12,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -21,6 +23,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -30,12 +33,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // Ensure the phone number is set (fallback to text input if needed)
+      String phoneNumber = _phoneController.text.trim();
+      if (phoneNumber.isEmpty) throw FirebaseAuthException(code: 'invalid-phone', message: 'Phone number is required.');
+
+      // Check if phone number already exists in Firestore
+      var existingUser = await FirebaseFirestore.instance.collection('Users').doc(phoneNumber).get();
+      if (existingUser.exists) {
+        throw FirebaseAuthException(code: 'phone-number-in-use', message: 'Phone number is already registered.');
+      }
+
+      // Register user in Firebase Auth
       UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
       await userCredential.user?.sendEmailVerification();
+
+      // Save user details to Firestore (without password for security reasons)
+      await FirebaseFirestore.instance.collection('Users').doc(phoneNumber).set({
+        'Email': _emailController.text.trim(),
+        'PhoneNumber': phoneNumber,
+        'Pass': _passwordController.text.trim(),
+        'createdAt': FieldValue.serverTimestamp(),
+      }).then((value) {
+        print("User saved to Firestore successfully!");
+      }).catchError((error) {
+        print("Failed to save user to Firestore: $error");
+      });
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -47,6 +73,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       Navigator.pushReplacementNamed(context, '/login');
     } on FirebaseAuthException catch (e) {
+      setState(() => _isLoading = false); // Stop progress indicator
+
       String message = "Registration failed. Please try again.";
       if (e.code == 'email-already-in-use') {
         message = "Email is already registered. Try logging in.";
@@ -54,10 +82,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         message = "Password too weak. Use uppercase, number, and symbol.";
       } else if (e.code == 'invalid-email') {
         message = "Invalid email format.";
+      } else if (e.code == 'phone-number-in-use') {
+        message = "Phone number is already registered.";
+      } else if (e.code == 'invalid-phone') {
+        message = "Please enter a valid phone number.";
       } else {
         message = e.message ?? "Unknown error occurred.";
       }
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
@@ -65,9 +96,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
           behavior: SnackBarBehavior.floating,
         ),
       );
+    } catch (e) {
+      setState(() => _isLoading = false); // Stop progress indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("An unexpected error occurred."),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
 
     setState(() => _isLoading = false);
+  }
+
+  String? _validatePhoneNumber(String? value) {
+    if (value == null || value.isEmpty) return 'Enter your phone number';
+    String pattern = r'^(?:\+?(\d{1,3}))?[-.\s]?(\d{10})$';
+    RegExp regExp = RegExp(pattern);
+    if (!regExp.hasMatch(value)) return 'Enter a valid phone number';
+    return null;
   }
 
   @override
@@ -98,6 +146,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     }
                     return null;
                   },
+                ),
+
+                SizedBox(height: 16),
+
+                // Phone Number Field
+                TextFormField(
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: InputDecoration(
+                    labelText: 'Phone Number',
+                    border: OutlineInputBorder(),
+                    hintText: 'e.g. +1234567890 or 9876543210',
+                  ),
+                  validator: _validatePhoneNumber,
                 ),
 
                 SizedBox(height: 16),
