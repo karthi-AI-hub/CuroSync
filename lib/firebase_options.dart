@@ -42,7 +42,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyB_RFi22MmniHyRguW3VDK9xpV4brqyPlM',
-    appId: '1:303254267360:web:ac1bff67efbf5720e4b785',
+    appId: '1:303254267360:web:2cd95231002761abe4b785',
     messagingSenderId: '303254267360',
     projectId: 'curosync-app',
     authDomain: 'curosync-app.firebaseapp.com',
@@ -77,10 +77,11 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions windows = FirebaseOptions(
     apiKey: 'AIzaSyB_RFi22MmniHyRguW3VDK9xpV4brqyPlM',
-    appId: '1:303254267360:web:2cd95231002761abe4b785',
+    appId: '1:303254267360:web:836ead6c8cac2992e4b785',
     messagingSenderId: '303254267360',
     projectId: 'curosync-app',
     authDomain: 'curosync-app.firebaseapp.com',
     storageBucket: 'curosync-app.firebasestorage.app',
   );
+
 }
