@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -31,32 +32,36 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text.trim(),
       );
 
-      if (userCredential.user == null) {
-        throw FirebaseAuthException(code: 'user-not-found', message: 'User not found.');
+      User? user = userCredential.user;
+      if (user == null) throw FirebaseAuthException(code: 'user-not-found', message: 'User not found.');
+
+      // Fetch user document where Email matches
+      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+          .collection('Users')
+          .where('Email', isEqualTo: _emailController.text.trim())
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        throw FirebaseAuthException(code: 'user-not-found', message: 'User record not found in records.');
       }
 
-      // Check if email is verified
-      // if (!userCredential.user!.emailVerified) {
-      //   ScaffoldMessenger.of(context).showSnackBar(
-      //     SnackBar(
-      //       content: Text('Please verify your email before logging in.'),
-      //       backgroundColor: Colors.orange,
-      //     ),
-      //   );
-      //   setState(() => _isLoading = false);
-      //   return;
-      // }
+      // Get the phone number from Firestore
+      String phoneNumber = querySnapshot.docs.first.id;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Login Successful!'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ),
-      );
+      // Update LastLogin field
+      await FirebaseFirestore.instance.collection('Users').doc(phoneNumber).update({
+        'LastLogin': FieldValue.serverTimestamp(),
+      });
 
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Login Successful!'),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 2),
+      ));
 
       Navigator.pushReplacementNamed(context, '/home');
+
     } on FirebaseAuthException catch (e) {
       String message = "Login failed. Please try again.";
       if (e.code == 'user-not-found') {

@@ -38,7 +38,7 @@ class CuroSyncApp extends StatelessWidget {
       ),
       home: const SplashScreen(),
       routes: {
-        '/home': (context) => HomeScreen(),
+        '/home': (context) => PatientHomePage(),
         '/login': (context) => LoginScreen(),
         '/register': (context) => RegisterScreen(),
       },

@@ -33,17 +33,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Ensure the phone number is set (fallback to text input if needed)
       String phoneNumber = _phoneController.text.trim();
-      if (phoneNumber.isEmpty) throw FirebaseAuthException(code: 'invalid-phone', message: 'Phone number is required.');
 
-      // Check if phone number already exists in Firestore
-      var existingUser = await FirebaseFirestore.instance.collection('Users').doc(phoneNumber).get();
-      if (existingUser.exists) {
+      if (phoneNumber.isEmpty) {
+        throw FirebaseAuthException(code: 'invalid-phone', message: 'Phone number is required.');
+      }
+
+      // Normalize phone number (store only last 10 digits)
+      String normalizedPhone = phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
+      if (normalizedPhone.length == 12 && normalizedPhone.startsWith('91')) {
+        normalizedPhone = normalizedPhone.substring(2); // Remove country code if it's +91
+      }
+
+      if (normalizedPhone.length != 10) {
+        throw FirebaseAuthException(code: 'invalid-phone', message: 'Invalid phone number.');
+      }
+
+      // Check if phone number already exists (both formats)
+      var existingUser1 = await FirebaseFirestore.instance.collection('Users').doc(normalizedPhone).get();
+      var existingUser2 = await FirebaseFirestore.instance.collection('Users').doc('+91$normalizedPhone').get();
+
+      if (existingUser1.exists || existingUser2.exists) {
         throw FirebaseAuthException(code: 'phone-number-in-use', message: 'Phone number is already registered.');
       }
 
-      // Register user in Firebase Auth
+      // Register user with email and password
       UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
@@ -51,12 +65,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       await userCredential.user?.sendEmailVerification();
 
-      // Save user details to Firestore (without password for security reasons)
-      await FirebaseFirestore.instance.collection('Users').doc(phoneNumber).set({
+      // Save user in Firestore with normalized phone number as document ID
+      await FirebaseFirestore.instance.collection('Users').doc(normalizedPhone).set({
         'Email': _emailController.text.trim(),
-        'PhoneNumber': phoneNumber,
+        'PhoneNumber': normalizedPhone,
         'Pass': _passwordController.text.trim(),
-        'createdAt': FieldValue.serverTimestamp(),
+        'CreatedAt': FieldValue.serverTimestamp(),
       }).then((value) {
         print("User saved to Firestore successfully!");
       }).catchError((error) {
@@ -72,23 +86,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
 
       Navigator.pushReplacementNamed(context, '/login');
+
     } on FirebaseAuthException catch (e) {
       setState(() => _isLoading = false); // Stop progress indicator
 
       String message = "Registration failed. Please try again.";
       if (e.code == 'email-already-in-use') {
         message = "Email is already registered. Try logging in.";
+        _emailController.clear();
       } else if (e.code == 'weak-password') {
         message = "Password too weak. Use uppercase, number, and symbol.";
       } else if (e.code == 'invalid-email') {
         message = "Invalid email format.";
       } else if (e.code == 'phone-number-in-use') {
         message = "Phone number is already registered.";
+        _phoneController.clear();
       } else if (e.code == 'invalid-phone') {
         message = "Please enter a valid phone number.";
       } else {
         message = e.message ?? "Unknown error occurred.";
       }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
@@ -97,7 +115,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       );
     } catch (e) {
-      setState(() => _isLoading = false); // Stop progress indicator
+      setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("An unexpected error occurred."),
@@ -110,12 +128,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = false);
   }
 
+
   String? _validatePhoneNumber(String? value) {
     if (value == null || value.isEmpty) return 'Enter your phone number';
-    String pattern = r'^(?:\+?(\d{1,3}))?[-.\s]?(\d{10})$';
-    RegExp regExp = RegExp(pattern);
-    if (!regExp.hasMatch(value)) return 'Enter a valid phone number';
-    return null;
+
+    String cleanedNumber = value.replaceAll(RegExp(r'[^0-9+]'), '');
+
+    if (RegExp(r'^[6789]\d{9}$').hasMatch(cleanedNumber)) {
+      return null;
+    }
+
+    if (RegExp(r'^\+\d{11,15}$').hasMatch(cleanedNumber)) {
+      return null;
+    }
+    return 'Enter a valid phone number';
   }
 
   @override
@@ -138,7 +164,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
+                  decoration: InputDecoration(labelText: 'Email', border: OutlineInputBorder(),hintText: 'e.g. example@gmail.com',),
                   validator: (value) {
                     if (value == null || value.isEmpty) return 'Please enter your email';
                     if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(value)) {
@@ -150,21 +176,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 SizedBox(height: 16),
 
-                // Phone Number Field
                 TextFormField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
                   decoration: InputDecoration(
                     labelText: 'Phone Number',
                     border: OutlineInputBorder(),
-                    hintText: 'e.g. +1234567890 or 9876543210',
+                    hintText: 'e.g. +919876543210 or 9876543210',
                   ),
                   validator: _validatePhoneNumber,
                 ),
 
                 SizedBox(height: 16),
 
-                // Password Field
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
