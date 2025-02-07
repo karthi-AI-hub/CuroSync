@@ -39,7 +39,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         throw FirebaseAuthException(code: 'invalid-phone', message: 'Phone number is required.');
       }
 
-      // Normalize phone number (store only last 10 digits)
       String normalizedPhone = phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
       if (normalizedPhone.length == 12 && normalizedPhone.startsWith('91')) {
         normalizedPhone = normalizedPhone.substring(2); // Remove country code if it's +91
@@ -49,7 +48,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         throw FirebaseAuthException(code: 'invalid-phone', message: 'Invalid phone number.');
       }
 
-      // Check if phone number already exists (both formats)
       var existingUser1 = await FirebaseFirestore.instance.collection('Users').doc(normalizedPhone).get();
       var existingUser2 = await FirebaseFirestore.instance.collection('Users').doc('+91$normalizedPhone').get();
 
@@ -57,7 +55,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         throw FirebaseAuthException(code: 'phone-number-in-use', message: 'Phone number is already registered.');
       }
 
-      // Register user with email and password
       UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
@@ -65,7 +62,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       await userCredential.user?.sendEmailVerification();
 
-      // Save user in Firestore with normalized phone number as document ID
       await FirebaseFirestore.instance.collection('Users').doc(normalizedPhone).set({
         'Email': _emailController.text.trim(),
         'PhoneNumber': normalizedPhone,
@@ -148,7 +144,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(title: Text('Register')),
       body: Padding(
         padding: EdgeInsets.all(16),
         child: Form(
@@ -237,7 +232,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 SizedBox(height: 24),
 
-                // Register Button
                 _isLoading
                     ? Center(child: CircularProgressIndicator())
                     : SizedBox(

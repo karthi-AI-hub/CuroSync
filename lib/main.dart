@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'dart:async';
 import 'firebase_options.dart';
-import 'screens/home_screen.dart';
-import 'screens/login_screen.dart';
-import 'screens/register_screen.dart';
-import 'screens/splash_screen.dart';
+import 'patient_screens/patient_home_screen.dart';
+import 'patient_screens/patient_login_screen.dart';
+import 'patient_screens/register_screen.dart';
+import 'splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

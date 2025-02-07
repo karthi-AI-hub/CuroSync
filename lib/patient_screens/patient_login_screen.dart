@@ -35,7 +35,6 @@ class _LoginScreenState extends State<LoginScreen> {
       User? user = userCredential.user;
       if (user == null) throw FirebaseAuthException(code: 'user-not-found', message: 'User not found.');
 
-      // Fetch user document where Email matches
       QuerySnapshot querySnapshot = await FirebaseFirestore.instance
           .collection('Users')
           .where('Email', isEqualTo: _emailController.text.trim())
@@ -108,7 +107,6 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(title: Text('Login')),
       body: Padding(
         padding: EdgeInsets.all(16),
         child: Form(

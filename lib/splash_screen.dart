@@ -16,19 +16,16 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   void initState() {
     super.initState();
 
-    // Initialize Animation Controller
     _controller = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
     )..forward();
 
-    // Apply Smooth Curve for Fade Effect
     _fadeAnimation = CurvedAnimation(
       parent: _controller,
       curve: Curves.easeIn,
     );
 
-    // Navigate after Delay
     Future.delayed(const Duration(seconds: 5), () {
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/home');
@@ -52,12 +49,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Logo with Fade Effect
               Image.asset("assets/logo.jpeg", height: 120),
 
               const SizedBox(height: 20),
 
-              // App Name with Fade Effect
               FadeTransition(
                 opacity: _fadeAnimation,
                 child: const Text(
@@ -72,7 +67,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
               const SizedBox(height: 10),
 
-              // Tagline with Fade Effect
               FadeTransition(
                 opacity: _fadeAnimation,
                 child: Text(
@@ -86,7 +80,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
               const SizedBox(height: 30),
 
-              // Loading Indicator
               const CircularProgressIndicator(color: Colors.teal),
             ],
           ),
