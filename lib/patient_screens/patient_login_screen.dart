@@ -1,29 +1,46 @@
+import 'package:curosync/patient_screens/patient_home_screen.dart';
+import 'package:curosync/patient_screens/patient_register_screen.dart';
+import 'package:curosync/splash_screen.dart';
+import 'package:curosync/utils/values.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:curosync/patient_screens/patient_input_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class LoginScreen extends StatefulWidget {
+class PatientLoginScreen extends StatefulWidget {
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<PatientLoginScreen> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
 
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _animationController.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(vsync: this, duration: Duration(milliseconds: 800));
+    _fadeAnimation = CurvedAnimation(parent: _animationController, curve: Curves.easeIn);
+    _animationController.forward();
   }
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _isLoading = true);
 
     try {
@@ -45,21 +62,35 @@ class _LoginScreenState extends State<LoginScreen> {
         throw FirebaseAuthException(code: 'user-not-found', message: 'User record not found in records.');
       }
 
-      // Get the phone number from Firestore
       String phoneNumber = querySnapshot.docs.first.id;
+      setPhone(phoneNumber);
 
-      // Update LastLogin field
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('Users').doc(phoneNumber).get();
+      var userData = userDoc.data() as Map<String, dynamic>?;
+
+      if (userData == null || !userData.containsKey('Name') || userData['Name'].toString().trim().isEmpty) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => InputScreen(userId: user.uid)),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => PatientHomePage()),
+        );
+      }
+
       await FirebaseFirestore.instance.collection('Users').doc(phoneNumber).update({
         'LastLogin': FieldValue.serverTimestamp(),
       });
+
+      _saveUserRole("Patient", phoneNumber);
 
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Login Successful!'),
         backgroundColor: Colors.green,
         duration: Duration(seconds: 2),
       ));
-
-      Navigator.pushReplacementNamed(context, '/home');
 
     } on FirebaseAuthException catch (e) {
       String message = "Login failed. Please try again.";
@@ -81,6 +112,12 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     setState(() => _isLoading = false);
+  }
+
+  Future<void> _saveUserRole(String role, String phno) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('userRole', role);
+    await prefs.setString('phno', phno);
   }
 
   Future<void> _resetPassword() async {
@@ -106,95 +143,126 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Padding(
-        padding: EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          autovalidateMode: AutovalidateMode.onUserInteraction,
-          child: SingleChildScrollView(
+      backgroundColor: Colors.blueGrey.shade900,
+      body: Center(
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: Padding(
+            padding: EdgeInsets.all(16),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text("Welcome Back!", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-
-                SizedBox(height: 20),
-
-                // Email Field
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) return 'Please enter your email';
-                    if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(value)) {
-                      return 'Enter a valid email';
-                    }
-                    return null;
-                  },
+                Text(
+                  "Welcome Back!",
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
+                SizedBox(height: 8),
+                Text(
+                  "Log in to continue",
+                  style: TextStyle(fontSize: 16, color: Colors.grey.shade300),
+                ),
+                SizedBox(height: 32),
+                Container(
+                  padding: EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(15),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10, spreadRadius: 2),
+                    ],
+                  ),
+                  child: Form(
+                    key: _formKey,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    child: Column(
+                      children: [
+                        TextFormField(
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          style: TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            labelText: 'Email',
+                            labelStyle: TextStyle(color: Colors.white70),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                            prefixIcon: Icon(Icons.email, color: Colors.white70),
+                          ),
+                          validator: (value) => value!.isEmpty ? 'Enter a valid email' : null,
+                        ),
+                        SizedBox(height: 16),
+                        TextFormField(
+                          controller: _passwordController,
+                          obscureText: _obscurePassword,
+                          style: TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            labelText: 'Password',
+                            labelStyle: TextStyle(color: Colors.white70),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                            prefixIcon: Icon(Icons.lock, color: Colors.white70),
+                            suffixIcon: IconButton(
+                              icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off, color: Colors.white70),
+                              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                            ),
+                          ),
+                          validator: (value) => value!.isEmpty ? 'Enter your password' : null,
+                        ),
+                        SizedBox(height: 10),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: _resetPassword,
+                            child: Text("Forgot Password?", style: TextStyle(color: Colors.redAccent)),
+                          ),
+                        ),
+                        SizedBox(height: 24),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : _login,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.tealAccent[700],
+                              padding: EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: _isLoading
+                                ? CircularProgressIndicator(color: Colors.white)
+                                : Text(
+                              "LOGIN",
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                            ),
+                        ),
+                        ),
+                        SizedBox(height: 16),
+                        Column(
+                          children: [
+                            TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => SplashScreen()),
+                                );
+                              },
+                              child: Text(
+                                "Back to select Role",
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => PatientRegisterScreen()),
+                                );
+                              },
+                              child: Text(
+                                "Don't have an account? Register",
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            ),
 
-                SizedBox(height: 16),
-
-                // Password Field
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    border: OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
-                      onPressed: () {
-                        setState(() => _obscurePassword = !_obscurePassword);
-                      },
+                          ],
+                        ),
+                      ],
                     ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return 'Enter your password';
-                    return null;
-                  },
-                ),
-
-                SizedBox(height: 10),
-
-                // Forgot Password Link
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: _resetPassword,
-                    child: Text("Forgot Password?", style: TextStyle(color: Colors.blue)),
-                  ),
-                ),
-
-                SizedBox(height: 24),
-
-                // Login Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _login,
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      textStyle: TextStyle(fontSize: 18),
-                    ),
-                    child: _isLoading
-                        ? SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                        : Text("Login"),
-                  ),
-                ),
-
-                SizedBox(height: 16),
-
-                // Register Link
-                Center(
-                  child: TextButton(
-                    onPressed: () => Navigator.pushReplacementNamed(context, '/register'),
-                    child: Text("Don't have an account? Register"),
                   ),
                 ),
               ],
